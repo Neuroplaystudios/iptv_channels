@@ -1,8 +1,11 @@
 name: Actualizar URLs IPTV
 
+permissions:
+  contents: write
+
 on:
   schedule:
-    - cron: "*/20 * * * *"   # Cada 20 minutos
+    - cron: "*/20 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -22,12 +25,13 @@ jobs:
         run: pip install requests
 
       - name: Ejecutar script de actualización
-        run: python scripts/actualizar_canales.py   # ← SIN working-directory
+        run: python scripts/actualizar_canales.py
+        working-directory: iptv_channels
 
       - name: Commit y push si hubo cambios
         run: |
           git config user.name "GitHub Bot"
           git config user.email "bot@github.com"
-          git add canales.json
+          git add .
           git commit -m "Auto-actualización de URLs IPTV" || echo "No hay cambios"
           git push
