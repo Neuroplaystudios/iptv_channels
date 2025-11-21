@@ -22,13 +22,12 @@ jobs:
         run: pip install requests
 
       - name: Ejecutar script de actualización
-        run: python scripts/actualizar_canales.py
-        working-directory: iptv_channels
+        run: python scripts/actualizar_canales.py   # ← SIN working-directory
 
       - name: Commit y push si hubo cambios
         run: |
           git config user.name "GitHub Bot"
           git config user.email "bot@github.com"
-          git add .
+          git add canales.json
           git commit -m "Auto-actualización de URLs IPTV" || echo "No hay cambios"
           git push
