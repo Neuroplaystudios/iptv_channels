@@ -26,7 +26,6 @@ jobs:
 
       - name: Ejecutar script de actualización
         run: python scripts/actualizar_canales.py
-        working-directory: iptv_channels
 
       - name: Commit y push si hubo cambios
         run: |
