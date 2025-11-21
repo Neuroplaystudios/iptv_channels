@@ -3,48 +3,34 @@ import json
 
 def obtener_url_willax():
     try:
-        print("→ Buscando URL dinámica de Willax...")
+        print("→ Obteniendo URL dinámica de Willax desde metadata JSON...")
 
-        # ID fijo del canal Willax en Dailymotion (x9s3ad6)
-        video_id = "x9s3ad6"
+        meta_url = "https://www.dailymotion.com/player/metadata/video/x9s3ad6"
+        headers = { "User-Agent": "Mozilla/5.0" }
 
-        # API oficial de Dailymotion
-        api_url = f"https://www.dailymotion.com/player/metadata/video/{video_id}"
-
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
-
-        r = requests.get(api_url, headers=headers, timeout=10)
+        r = requests.get(meta_url, headers=headers, timeout=10)
 
         if r.status_code != 200:
-            print("✖ Error obteniendo metadata de Dailymotion.")
+            print("✖ No se pudo acceder al metadata de Willax.")
             return None
 
         data = r.json()
 
-        # Navegar la estructura para obtener la calidad más alta disponible
-        try:
-            qualities = data["qualities"]
-        except:
-            print("✖ No se encontraron calidades en la metadata.")
-            return None
+        # Navegar hasta encontrar streams HLS
+        streams = data.get("qualities", {})
 
-        # Orden de calidad prioridad
-        prioridad = ["720", "480", "380", "240", "144"]
+        # Buscar la mejor calidad disponible
+        for quality in ["720", "480", "380", "240", "144"]:
+            if quality in streams:
+                for entry in streams[quality]:
+                    if entry.get("type") == "application/x-mpegURL":
+                        url = entry.get("url")
+                        print(f"✔ Willax actualizado: {url}")
+                        return url
 
-        for q in prioridad:
-            if q in qualities:
-                streams = qualities[q]
-                # Tomar la primera URL .m3u8 válida
-                for stream in streams:
-                    if "url" in stream and stream["type"] == "application/x-mpegURL":
-                        print(f"✔ Willax actualizado: {stream['url']}")
-                        return stream["url"]
-
-        print("✖ No se encontró ninguna URL de stream válida.")
+        print("✖ No se encontró un stream HLS en la metadata.")
         return None
 
     except Exception as e:
-        print("❌ Error:", e)
+        print("Error obteniendo Willax:", e)
         return None
