@@ -1,40 +1,34 @@
-import requests
-import json
-import re
-
-URL_M3U8_WILLAX = "https://willax.tv/senal-en-vivo/"
-RUTA_JSON = "canales.json"
-
 def obtener_url_willax():
     try:
-        html = requests.get(URL_M3U8_WILLAX, timeout=10).text
-        urls = re.findall(r'https://[^"]+\.m3u8', html)
-        # De todos los .m3u8 escogemos el más largo (suele ser el válido)
-        mejor_url = max(urls, key=len)
-        return mejor_url
-    except:
-        return None
+        print("→ Buscando URL dinámica de Willax...")
 
-def actualizar_json():
-    try:
-        with open(RUTA_JSON, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        # URL fija del reproductor Dailymotion
+        embed_url = "https://www.dailymotion.com/embed/video/x9s3ad6"
 
-        nueva_url = obtener_url_willax()
+        headers = { "User-Agent": "Mozilla/5.0" }
+        r = requests.get(embed_url, headers=headers, timeout=10)
 
-        if nueva_url:
-            for canal in data["canales"]:
-                if canal["nombre"] == "Willax":
-                    canal["url"] = nueva_url
+        if r.status_code != 200:
+            print("✖ No se pudo acceder al embed de Willax.")
+            return None
 
-            with open(RUTA_JSON, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
+        # Buscar cualquier .m3u8 que aparezca en el HTML
+        m3u8_urls = re.findall(r'https?://[^"\']+\.m3u8', r.text)
 
-            print("✔ Willax actualizado correctamente:", nueva_url)
-        else:
-            print("✖ No se pudo obtener la URL de Willax.")
+        if not m3u8_urls:
+            print("✖ No se encontró ningún .m3u8 en Dailymotion.")
+            return None
+
+        # Priorizar la de mayor calidad
+        for calidad in ["live-720.m3u8", "live-480.m3u8", "live-240.m3u8"]:
+            for url in m3u8_urls:
+                if calidad in url:
+                    print(f"✔ Willax actualizado: {url}")
+                    return url
+
+        print("✔ Se encontró una URL .m3u8, pero sin calidad específica.")
+        return m3u8_urls[0]
+
     except Exception as e:
         print("Error:", e)
-
-if __name__ == "__main__":
-    actualizar_json()
+        return None
