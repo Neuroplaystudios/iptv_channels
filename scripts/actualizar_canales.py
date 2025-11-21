@@ -1,34 +1,50 @@
+import requests
+import json
+
 def obtener_url_willax():
     try:
         print("→ Buscando URL dinámica de Willax...")
 
-        # URL fija del reproductor Dailymotion
-        embed_url = "https://www.dailymotion.com/embed/video/x9s3ad6"
+        # ID fijo del canal Willax en Dailymotion (x9s3ad6)
+        video_id = "x9s3ad6"
 
-        headers = { "User-Agent": "Mozilla/5.0" }
-        r = requests.get(embed_url, headers=headers, timeout=10)
+        # API oficial de Dailymotion
+        api_url = f"https://www.dailymotion.com/player/metadata/video/{video_id}"
+
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+
+        r = requests.get(api_url, headers=headers, timeout=10)
 
         if r.status_code != 200:
-            print("✖ No se pudo acceder al embed de Willax.")
+            print("✖ Error obteniendo metadata de Dailymotion.")
             return None
 
-        # Buscar cualquier .m3u8 que aparezca en el HTML
-        m3u8_urls = re.findall(r'https?://[^"\']+\.m3u8', r.text)
+        data = r.json()
 
-        if not m3u8_urls:
-            print("✖ No se encontró ningún .m3u8 en Dailymotion.")
+        # Navegar la estructura para obtener la calidad más alta disponible
+        try:
+            qualities = data["qualities"]
+        except:
+            print("✖ No se encontraron calidades en la metadata.")
             return None
 
-        # Priorizar la de mayor calidad
-        for calidad in ["live-720.m3u8", "live-480.m3u8", "live-240.m3u8"]:
-            for url in m3u8_urls:
-                if calidad in url:
-                    print(f"✔ Willax actualizado: {url}")
-                    return url
+        # Orden de calidad prioridad
+        prioridad = ["720", "480", "380", "240", "144"]
 
-        print("✔ Se encontró una URL .m3u8, pero sin calidad específica.")
-        return m3u8_urls[0]
+        for q in prioridad:
+            if q in qualities:
+                streams = qualities[q]
+                # Tomar la primera URL .m3u8 válida
+                for stream in streams:
+                    if "url" in stream and stream["type"] == "application/x-mpegURL":
+                        print(f"✔ Willax actualizado: {stream['url']}")
+                        return stream["url"]
+
+        print("✖ No se encontró ninguna URL de stream válida.")
+        return None
 
     except Exception as e:
-        print("Error:", e)
+        print("❌ Error:", e)
         return None
