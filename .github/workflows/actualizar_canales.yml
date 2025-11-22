@@ -5,7 +5,7 @@ permissions:
 
 on:
   schedule:
-    - cron: "*/20 * * * *"
+    - cron: "*/20 * * * *"   # Cada 20 minutos
   workflow_dispatch:
 
 jobs:
@@ -13,20 +13,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Descargar el repo
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      # 2. Instalar Python
       - name: Configurar Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
+      # 3. Instalar dependencias
       - name: Instalar dependencias
-        run: pip install requests
+        run: |
+          pip install requests
+          pip install playwright
+          playwright install chromium
 
+      # 4. Ejecutar el script
       - name: Ejecutar script de actualización
         run: python scripts/actualizar_canales.py
 
+      # 5. Commit & push si hubo cambios
       - name: Commit y push si hubo cambios
         run: |
           git config user.name "GitHub Bot"
