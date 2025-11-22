@@ -23,18 +23,22 @@ jobs:
         with:
           python-version: "3.10"
 
-      # 3. Instalar dependencias Python + Playwright
-      - name: Instalar dependencias
+      # 3. Instalar Playwright (Python)
+      - name: Instalar Playwright
         run: |
           pip install playwright
-          pip install requests
-          npx playwright install --with-deps chromium
+          playwright install chromium
 
-      # 4. Ejecutar script
+      # 4. Instalar dependencias extra si tu script las usa
+      - name: Instalar dependencias adicionales
+        run: |
+          pip install requests
+
+      # 5. Ejecutar script
       - name: Ejecutar script de actualización
         run: python scripts/actualizar_canales.py
 
-      # 5. Commit & push si hubo cambios
+      # 6. Commit & push si hubo cambios
       - name: Commit y push si hubo cambios
         run: |
           git config user.name "GitHub Bot"

@@ -15,8 +15,12 @@ async def obtener_url_willax():
     print("→ Abriendo Willax para capturar .m3u8...")
 
     async with async_playwright() as p:
-        # MODO COMPATIBLE CON GITHUB ACTIONS
-        browser = await p.chromium.launch(headless="new", args=["--no-sandbox", "--disable-gpu"])
+        # COMPATIBLE CON GITHUB ACTIONS (headless=True)
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-gpu"]
+        )
+
         page = await browser.new_page()
 
         # lista para almacenar todas las URLs .m3u8 detectadas
