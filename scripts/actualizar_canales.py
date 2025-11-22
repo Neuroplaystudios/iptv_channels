@@ -8,15 +8,14 @@ from playwright.async_api import async_playwright
 # ============================================================
 async def limpiar_publicidad(page):
 
-    print("\n==============================")
-    print(" LIMPIEZA DE PUBLICIDAD")
-    print("==============================\n")
+    print("\n========================================")
+    print(" 🧹 INICIO → LIMPIEZA DE PUBLICIDAD")
+    print("========================================\n")
 
     await page.wait_for_timeout(3000)
 
-    print("→ Buscando anuncios para cerrar...")
+    print("[LOG] → Buscando elementos de publicidad para cerrar...")
 
-    # Selectores típicos + popup de Google Vignette
     posibles_cierres = [
         "button[aria-label='Close']",
         "button.close",
@@ -30,26 +29,24 @@ async def limpiar_publicidad(page):
         "text=Close",
         "text=X",
         "text=×",
-
-        # ESPECÍFICO GOOGLE VIGNETTE
         "div[role='dialog'] >> text=Cerrar",
         "iframe[src*='google_vignette']",
         "#google_vignette",
         "div[id*='google'] button"
     ]
 
-    # Intentar cerrar todos los tipos de publicidad
     for selector in posibles_cierres:
         try:
             loc = page.locator(selector).first
             if await loc.is_visible(timeout=1500):
+                print(f"[LOG] → Intentando cerrar popup con selector: {selector}")
                 await loc.click()
-                print(f"   ✔ Cerré popup: {selector}")
+                print(f"   ✔ Popup cerrado: {selector}")
                 await page.wait_for_timeout(500)
-        except:
-            pass
+        except Exception as e:
+            print(f"[LOG] No se encontró/cerro: {selector} (OK)")
 
-    print("→ Eliminando overlays con z-index elevado...")
+    print("[LOG] → Eliminando overlays con z-index alto...")
 
     try:
         await page.evaluate("""
@@ -62,11 +59,11 @@ async def limpiar_publicidad(page):
         """)
         print("   ✔ Overlays eliminados")
     except:
-        print("   ✖ No se pudo eliminar overlays")
+        print("   ✖ No fue posible eliminar overlays")
 
-    print("\n==============================")
-    print(" PUBLICIDAD LIMPIADA")
-    print("==============================\n")
+    print("\n========================================")
+    print(" 🧹 FIN → PUBLICIDAD LIMPIADA")
+    print("========================================\n")
 
 
 # ============================================================
@@ -74,48 +71,59 @@ async def limpiar_publicidad(page):
 # ============================================================
 async def obtener_url_willax():
 
-    print("→ Abriendo Willax...")
+    print("\n========================================")
+    print(" 🚀 INICIO → OBTENER URL DE WILLAX")
+    print("========================================\n")
 
     async with async_playwright() as p:
+        print("[LOG] → Iniciando navegador Chromium...")
+
         browser = await p.chromium.launch(
-            headless=False,   # <<<<<<<<<<<<<< VERÁS LA PÁGINA
+            headless=False,  # << VERÁS LA PÁGINA
             args=[
                 "--no-sandbox",
                 "--disable-gpu",
-                "--disable-blink-features=AutomationControlled",
+                "--disable-blink-features=AutomationControlled"
             ]
         )
 
+        print("[LOG] → Creando contexto...")
+
         context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                       "AppleWebKit/537.36 (KHTML, like Gecko) "
+                       "Chrome/120.0.0.0 Safari/537.36",
         )
 
-        page = await context.new_page()
+        print("[LOG] → Abriendo pestaña...")
 
-        # Donde guardaremos los m3u8 detectados
+        page = await context.new_page()
         page._m3u8_urls = []
 
-        # Escuchar peticiones
+        # Captura de peticiones
         def capturar(request):
             if ".m3u8" in request.url:
-                print("✔ Detectado stream:", request.url)
+                print(f"🔥 DETECTADO M3U8 → {request.url}")
                 page._m3u8_urls.append(request.url)
 
+        print("[LOG] → Activando escucha de peticiones...")
         page.on("request", capturar)
 
+        print("[LOG] → Cargando página de Willax...")
         await page.goto("https://willax.pe/en-vivo", timeout=60000)
 
-        # Limpiar toda la basura visual
+        # LIMPIAR BASURA
         await limpiar_publicidad(page)
 
-        # Presionar play si fuese necesario
+        # PRESIONAR PLAY SI ES NECESARIO
         try:
+            print("[LOG] → Buscando botón PLAY...")
             await page.click("button", timeout=4000)
-            print("→ Intenté presionar Play")
+            print("   ✔ Botón Play presionado")
         except:
-            print("→ No encontré botón Play")
+            print("   ⚠ No encontré botón Play (probablemente ya está reproduciendo)")
 
-        print("→ Esperando el .m3u8...")
+        print("[LOG] → Esperando detección de .m3u8...")
 
         for i in range(30):
             print(f"   • Esperando... {i+1}/30")
@@ -123,37 +131,49 @@ async def obtener_url_willax():
                 break
             await asyncio.sleep(1)
 
+        print("[LOG] → Cerrando navegador...")
         await browser.close()
 
+        # RESULTADO
         if page._m3u8_urls:
             url = page._m3u8_urls[-1]
-            print("✔ URL capturada:", url)
+            print("✔ URL FINAL OBTENIDA:", url)
             return url
 
-        print("✖ No se detectó .m3u8")
+        print("✖ No se detectó ninguna URL .m3u8")
         return "N/A"
 
 
 # ============================================================
-#   PRINCIPAL
+#   PROGRAMA PRINCIPAL
 # ============================================================
 def main():
 
-    print("Iniciando actualización...")
+    print("\n========================================")
+    print(" 🟦 INICIO → ACTUALIZACIÓN DE CANALES")
+    print("========================================\n")
+
+    print("[LOG] → Leyendo archivo canales.json...")
 
     with open("canales.json", "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    print("[LOG] → Obteniendo nueva URL para Willax...")
+
     nueva = asyncio.run(obtener_url_willax())
 
-    print("→ Resultado:", nueva)
+    print("[LOG] → Resultado capturado:", nueva)
 
     data["canales"][1]["url"] = nueva
+
+    print("[LOG] → Guardando cambios en canales.json...")
 
     with open("canales.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
-    print("✔ Guardado correctamente")
+    print("\n========================================")
+    print(" ✔ PROCESO COMPLETADO — Archivo actualizado")
+    print("========================================\n")
 
 
 if __name__ == "__main__":
