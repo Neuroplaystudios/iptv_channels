@@ -13,30 +13,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Descargar el repo
+      # 1. Descargar repo
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      # 2. Instalar Python
+      # 2. Configurar Python
       - name: Configurar Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      # 3. Instalar Playwright correctamente (sin descargas extras)
-      - name: Instalar Playwright
-        uses: microsoft/playwright-github-action@v1
-
-      # 4. Instalar tus dependencias Python
+      # 3. Instalar dependencias Python + Playwright
       - name: Instalar dependencias
         run: |
-          pip install -r requirements.txt || pip install requests playwright
+          pip install playwright
+          pip install requests
+          npx playwright install --with-deps chromium
 
-      # 5. Ejecutar el script
+      # 4. Ejecutar script
       - name: Ejecutar script de actualización
         run: python scripts/actualizar_canales.py
 
-      # 6. Commit & push
+      # 5. Commit & push si hubo cambios
       - name: Commit y push si hubo cambios
         run: |
           git config user.name "GitHub Bot"
