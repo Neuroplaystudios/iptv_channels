@@ -92,7 +92,7 @@ async def obtener_url_willax():
         esta_en_github = os.environ.get("GITHUB_ACTIONS") == "true"
 
         browser = await p.chromium.launch(
-            headless=True if esta_en_github else False,
+            headless=False,
             slow_mo=300 if not esta_en_github else 0,
             args=[
                 "--no-sandbox",

@@ -34,6 +34,12 @@ jobs:
         run: |
           pip install requests
 
+      - name: Instalar Xvfb
+        run: sudo apt-get install xvfb
+
+      - name: Ejecutar script con Xvfb
+        run: xvfb-run -a python3 scripts/actualizar_canales.py
+
       # 5. Ejecutar script
       - name: Ejecutar script de actualización
         run: python scripts/actualizar_canales.py
