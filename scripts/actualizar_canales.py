@@ -88,8 +88,8 @@ async def obtener_url_willax():
         esta_en_github = os.environ.get("GITHUB_ACTIONS") == "true"
 
         browser = await p.chromium.launch(
-            headless=False if not esta_en_github else True,
-            slow_mo=300 if not esta_en_github else 0,
+            headless=False,  # 👈 SIEMPRE EN MODO NORMAL (NO HEADLESS)
+            slow_mo=0,
             args=[
                 "--no-sandbox",
                 "--disable-gpu",
@@ -106,20 +106,61 @@ async def obtener_url_willax():
         page = await context.new_page()
         page._streams_reales = []
 
-        # Captura de peticiones
+        # 💥 LOG: Registrar TODAS las peticiones
+        def registrar_todo(request):
+            print(f"[REQ] → {request.url}")
+        page.on("request", registrar_todo)
+
+        # Captura de peticiones filtradas
         def capturar(request):
             url = request.url
+
+            if ".m3u8" in url:
+                print(f"[M3U8] Detectado: {url}")
+
             if es_stream_real(url):
                 print(f"🔥 STREAM REAL DETECTADO → {url}")
                 page._streams_reales.append(url)
 
         page.on("request", capturar)
 
+        # Cargar página
         print("[LOG] → Cargando Willax...")
         await page.goto("https://willax.pe/en-vivo", timeout=60000)
 
-        # LIMPIEZA AUTOMÁTICA DE PUBLICIDAD
+        # Screenshots de debugging en GitHub
+        if esta_en_github:
+            try:
+                await page.screenshot(path="debug_inicial.png")
+                print("📸 Screenshot: debug_inicial.png guardado")
+            except:
+                pass
+
+        # LIMPIEZA DE PUBLICIDAD
         await limpiar_publicidad(page)
+
+        if esta_en_github:
+            try:
+                await page.screenshot(path="debug_post_ads.png")
+                print("📸 Screenshot: debug_post_ads.png guardado")
+            except:
+                pass
+
+        # LOG extra: ¿existe un video tag?
+        try:
+            video_count = await page.locator("video").count()
+            print(f"[LOG] → Cantidad de <video>: {video_count}")
+        except:
+            print("[LOG] → No se pudo verificar <video>")
+
+        # LOG extra: iframes
+        try:
+            frames = page.frames
+            print(f"[LOG] → Cantidad de iframes detectados: {len(frames)}")
+            for f in frames:
+                print("   - Frame:", f.url)
+        except:
+            pass
 
         # Intentar presionar PLAY
         try:
@@ -128,7 +169,7 @@ async def obtener_url_willax():
         except:
             print("[LOG] → No se necesitó Play")
 
-        # Esperar 30 segundos máximo
+        # Esperar streaming
         print("[LOG] → Esperando URLs reales...")
         for i in range(30):
             if page._streams_reales:
@@ -137,6 +178,7 @@ async def obtener_url_willax():
 
         await browser.close()
 
+        # Resultado
         if page._streams_reales:
             final = page._streams_reales[-1]
             print("✔ STREAM FINAL:", final)
