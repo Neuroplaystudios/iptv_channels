@@ -3,22 +3,20 @@ import json
 import asyncio
 from playwright.async_api import async_playwright
 
-
 # ============================================================
-#   FUNCIÓN: LIMPIEZA DE PUBLICIDAD Y OVERLAYS
+#   FUNCIÓN: LIMPIAR PUBLICIDAD, GOOGLE VIGNETTE Y OVERLAYS
 # ============================================================
 async def limpiar_publicidad(page):
 
     print("\n==============================")
-    print(" INICIANDO LIMPIEZA DE PUBLICIDAD")
+    print(" LIMPIEZA DE PUBLICIDAD")
     print("==============================\n")
 
-    # Espera inicial para que aparezcan anuncios
-    print("→ Esperando 2 segundos para que cargue la publicidad...")
-    await page.wait_for_timeout(2000)
+    await page.wait_for_timeout(3000)
 
-    print("→ Buscando publicidad para cerrar...")
+    print("→ Buscando anuncios para cerrar...")
 
+    # Selectores típicos + popup de Google Vignette
     posibles_cierres = [
         "button[aria-label='Close']",
         "button.close",
@@ -28,38 +26,43 @@ async def limpiar_publicidad(page):
         ".adm-close",
         ".vjs-modal-dialog-close-button",
         "div[role='dialog'] button",
-        "text='Cerrar'",
-        "text='Close'",
-        "text='X'",
-        "text='×'"
+        "text=Cerrar",
+        "text=Close",
+        "text=X",
+        "text=×",
+
+        # ESPECÍFICO GOOGLE VIGNETTE
+        "div[role='dialog'] >> text=Cerrar",
+        "iframe[src*='google_vignette']",
+        "#google_vignette",
+        "div[id*='google'] button"
     ]
 
-    # Intentar cerrar anuncios
+    # Intentar cerrar todos los tipos de publicidad
     for selector in posibles_cierres:
         try:
             loc = page.locator(selector).first
             if await loc.is_visible(timeout=1500):
                 await loc.click()
-                print(f"   ✔ Cerré publicidad: {selector}")
-                await page.wait_for_timeout(300)
-        except Exception as e:
-            print(f"   ✖ No pude cerrar: {selector} ({type(e).__name__})")
+                print(f"   ✔ Cerré popup: {selector}")
+                await page.wait_for_timeout(500)
+        except:
+            pass
 
-    print("→ Intentando eliminar overlays con z-index alto...")
+    print("→ Eliminando overlays con z-index elevado...")
 
-    # Intentar borrar overlays molestos
     try:
         await page.evaluate("""
             document.querySelectorAll('*').forEach(el => {
                 const z = window.getComputedStyle(el).zIndex;
-                if (z !== 'auto' && parseInt(z) > 1000) {
+                if (z !== 'auto' && parseInt(z) > 999) {
                     el.remove();
                 }
             });
         """)
         print("   ✔ Overlays eliminados")
-    except Exception as e:
-        print(f"   ✖ Error eliminando overlays: {type(e).__name__}")
+    except:
+        print("   ✖ No se pudo eliminar overlays")
 
     print("\n==============================")
     print(" PUBLICIDAD LIMPIADA")
@@ -67,23 +70,32 @@ async def limpiar_publicidad(page):
 
 
 # ============================================================
-#   FUNCIÓN: CAPTURAR STREAM M3U8 DE WILLAX
+#   OBTENER STREAM M3U8 DE WILLAX
 # ============================================================
 async def obtener_url_willax():
 
-    print("→ Abriendo Willax para capturar .m3u8...")
+    print("→ Abriendo Willax...")
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox", "--disable-gpu"]
+            headless=False,   # <<<<<<<<<<<<<< VERÁS LA PÁGINA
+            args=[
+                "--no-sandbox",
+                "--disable-gpu",
+                "--disable-blink-features=AutomationControlled",
+            ]
         )
-        page = await browser.new_page()
 
-        # Donde se acumularán los streams detectados
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        )
+
+        page = await context.new_page()
+
+        # Donde guardaremos los m3u8 detectados
         page._m3u8_urls = []
 
-        # Escuchar todas las peticiones
+        # Escuchar peticiones
         def capturar(request):
             if ".m3u8" in request.url:
                 print("✔ Detectado stream:", request.url)
@@ -91,67 +103,58 @@ async def obtener_url_willax():
 
         page.on("request", capturar)
 
-        # Abrir página
         await page.goto("https://willax.pe/en-vivo", timeout=60000)
 
-        # Cerrar publicidad
+        # Limpiar toda la basura visual
         await limpiar_publicidad(page)
 
-        # Intentar presionar Play
+        # Presionar play si fuese necesario
         try:
-            await page.click("button", timeout=5000)
-            print("→ Hice clic en Play")
+            await page.click("button", timeout=4000)
+            print("→ Intenté presionar Play")
         except:
-            print("→ No encontré Play, quizá se auto-reproduce")
+            print("→ No encontré botón Play")
 
-        print("→ Esperando que aparezca el .m3u8...")
+        print("→ Esperando el .m3u8...")
 
-        # Esperar dinamicamente hasta 30 segundos
-        for segundos in range(30):
-            print(f"   • Esperando... {segundos+1}/30")
+        for i in range(30):
+            print(f"   • Esperando... {i+1}/30")
             if page._m3u8_urls:
                 break
             await asyncio.sleep(1)
 
         await browser.close()
 
-        # Retornar resultado
         if page._m3u8_urls:
-            url_final = page._m3u8_urls[-1]
-            print("✔ URL final detectada:", url_final)
-            return url_final
+            url = page._m3u8_urls[-1]
+            print("✔ URL capturada:", url)
+            return url
 
-        print("✖ No apareció ningún .m3u8")
+        print("✖ No se detectó .m3u8")
         return "N/A"
 
 
 # ============================================================
-#   FUNCIÓN PRINCIPAL
+#   PRINCIPAL
 # ============================================================
 def main():
 
     print("Iniciando actualización...")
 
-    # Leer JSON existente
     with open("canales.json", "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    # Ejecutar scrapper
     nueva = asyncio.run(obtener_url_willax())
 
-    print("→ Resultado final:", nueva)
+    print("→ Resultado:", nueva)
 
-    # Guardar en JSON
     data["canales"][1]["url"] = nueva
 
     with open("canales.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
-    print("✔ Guardado en canales.json:", nueva)
+    print("✔ Guardado correctamente")
 
 
-# ============================================================
-#   EJECUCIÓN
-# ============================================================
 if __name__ == "__main__":
     main()
