@@ -22,8 +22,9 @@ def es_stream_real(url: str) -> bool:
         "live-480.m3u8",
         "live-720.m3u8",
         "master.m3u8",
-        "/live/",  
+        "/live/",
     ])
+
 
 # ============================================================
 #   FUNCIÓN LIMPIAR PUBLICIDAD
@@ -37,19 +38,13 @@ async def limpiar_publicidad(page):
     await page.wait_for_timeout(3000)
 
     posibles_cierres = [
+        "text=X",
+        "text=×",
+        "text=Cerrar",
         "button[aria-label='Close']",
-        "button.close",
-        "button[title='Close']",
         ".close-btn",
         ".ad-close",
         ".adm-close",
-        ".vjs-modal-dialog-close-button",
-        "div[role='dialog'] button",
-        "text=Cerrar",
-        "text=Close",
-        "text=X",
-        "text=×",
-        "#google_vignette",
         "iframe[src*='google']"
     ]
 
@@ -63,6 +58,7 @@ async def limpiar_publicidad(page):
         except:
             pass
 
+    # Eliminar overlays con z-index alto
     try:
         await page.evaluate("""
             document.querySelectorAll('*').forEach(el => {
@@ -70,9 +66,9 @@ async def limpiar_publicidad(page):
                 if (z !== 'auto' && parseInt(z) > 999) el.remove();
             });
         """)
-        print("   ✔ Overlays eliminados")
+        print(" ✔ Overlays eliminados")
     except:
-        print("   ✖ No fue posible eliminar overlays")
+        print(" ✖ No fue posible eliminar overlays")
 
     print("\n========================================")
     print(" 🧹 FIN → PUBLICIDAD LIMPIADA")
@@ -92,7 +88,7 @@ async def obtener_url_willax():
         esta_en_github = os.environ.get("GITHUB_ACTIONS") == "true"
 
         browser = await p.chromium.launch(
-            headless=False,
+            headless=False if not esta_en_github else True,
             slow_mo=300 if not esta_en_github else 0,
             args=[
                 "--no-sandbox",
@@ -122,6 +118,7 @@ async def obtener_url_willax():
         print("[LOG] → Cargando Willax...")
         await page.goto("https://willax.pe/en-vivo", timeout=60000)
 
+        # LIMPIEZA AUTOMÁTICA DE PUBLICIDAD
         await limpiar_publicidad(page)
 
         # Intentar presionar PLAY
