@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import asyncio
+import os
 from playwright.async_api import async_playwright
 
 # ============================================================
@@ -77,9 +78,10 @@ async def obtener_url_willax():
 
     async with async_playwright() as p:
         print("[LOG] → Iniciando navegador Chromium...")
+        esta_en_github = os.environ.get("GITHUB_ACTIONS") == "true"
 
         browser = await p.chromium.launch(
-            headless=False,  # << VERÁS LA PÁGINA
+            headless=True if esta_en_github else False,
             args=[
                 "--no-sandbox",
                 "--disable-gpu",
