@@ -8,44 +8,47 @@ HEADERS = {
 }
 
 # ===========================
-#   NUEVA FUNCIÓN CORREGIDA
+#   FUNCIÓN CORREGIDA
 # ===========================
 async def obtener_url_willax():
 
     print("→ Abriendo Willax para capturar .m3u8...")
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        # MODO COMPATIBLE CON GITHUB ACTIONS
+        browser = await p.chromium.launch(headless="new", args=["--no-sandbox", "--disable-gpu"])
         page = await browser.new_page()
 
-        ultimo_m3u8 = None
+        # lista para almacenar todas las URLs .m3u8 detectadas
+        page._m3u8_urls = []
 
-        # Capturar requests
-        page.on("request", lambda req: (
-            print("Detectado:", req.url) or None,
-            setattr(page, "_m3u8", req.url)
-        ) if ".m3u8" in req.url else None)
+        # Capturar requests a .m3u8
+        def capturar(req):
+            if ".m3u8" in req.url:
+                print("Detectado:", req.url)
+                page._m3u8_urls.append(req.url)
 
-        await page.goto("https://willax.pe/en-vivo")
+        page.on("request", capturar)
 
-        # Esperar para que cargue el reproductor y streaming
+        await page.goto("https://willax.pe/en-vivo", timeout=60000)
+
+        # Esperar a que cargue el streaming
         await page.wait_for_timeout(8000)
-
-        # Obtener el último m3u8 capturado
-        ultimo_m3u8 = getattr(page, "_m3u8", None)
 
         await browser.close()
 
-        if ultimo_m3u8:
-            print("✔ Último .m3u8 encontrado:", ultimo_m3u8)
-            return ultimo_m3u8
+        # Obtener solo el último m3u8 capturado
+        if page._m3u8_urls:
+            ultimo = page._m3u8_urls[-1]
+            print("✔ Último .m3u8 encontrado:", ultimo)
+            return ultimo
         else:
             print("✖ No se pudo obtener .m3u8.")
             return None
 
 
 # ===========================
-#   MAIN SIN CAMBIOS
+#           MAIN
 # ===========================
 def main():
     print("Iniciando actualización...")
