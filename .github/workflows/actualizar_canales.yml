@@ -23,28 +23,26 @@ jobs:
         with:
           python-version: "3.10"
 
-      # 3. Instalar Playwright (Python)
+      # 3. Instalar Playwright
       - name: Instalar Playwright
         run: |
           pip install playwright
           playwright install chromium
 
-      # 4. Instalar dependencias extra si tu script las usa
+      # 4. Instalar dependencias adicionales
       - name: Instalar dependencias adicionales
         run: |
           pip install requests
 
+      # 5. Instalar Xvfb
       - name: Instalar Xvfb
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
+      # 6. Ejecutar script usando pantalla virtual
       - name: Ejecutar script con Xvfb
         run: xvfb-run -a python3 scripts/actualizar_canales.py
 
-      # 5. Ejecutar script
-      - name: Ejecutar script de actualización
-        run: python scripts/actualizar_canales.py
-
-      # 6. Commit & push si hubo cambios
+      # 7. Commit & push si hubo cambios
       - name: Commit y push si hubo cambios
         run: |
           git config user.name "GitHub Bot"
